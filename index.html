@@ -3,844 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Street Madrassa Attendance Manager</title>
+    <title>Student Attendance Tracker (Google Sheets)</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Inter Font -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
-        }
         /* Custom scrollbar for better aesthetics */
         ::-webkit-scrollbar {
             width: 8px;
         }
         ::-webkit-scrollbar-track {
-            background: #e5e7eb;
+            background: #f1f1f1;
             border-radius: 10px;
         }
         ::-webkit-scrollbar-thumb {
-            background: #d1d5db;
+            background: #888;
             border-radius: 10px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #9ca3af;
-        }
-        .animate-spin {
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        /* Style for the modal */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 100;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(5px);
-        }
-        .modal-content {
-            position: relative;
-            background-color: #ffffff;
-            margin: 15% auto;
-            padding: 24px;
-            border-radius: 1rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1-px rgba(0, 0, 0, 0.06);
-            width: 90%;
-            max-width: 600px;
-        }
-        .close-btn {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-        }
-        .close-btn:hover,
-        .close-btn:focus {
-            color: #000;
-            text-decoration: none;
-            cursor: pointer;
+            background: #555;
         }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4 font-sans">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl">
+        <h1 class="text-4xl font-extrabold text-center text-green-700 mb-8">Google Sheets Attendance Tracker</h1>
 
-    <!-- Main Container -->
-    <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl w-full max-w-4xl space-y-8">
-
-        <!-- Header -->
-        <header class="text-center">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Street Madrassa</h1>
-            <p class="mt-2 text-gray-600">Attendance Manager for Street Madrassa.</p>
-            <!-- User ID Display - Mandatory for Firestore apps -->
-            <div id="userIdDisplay" class="mt-4 text-xs text-gray-400">
-                <span class="font-semibold">User ID:</span> <span id="userIdValue">Loading...</span>
-            </div>
-        </header>
-
-        <!-- Loading Spinner -->
-        <div id="loading-spinner" class="hidden flex items-center justify-center p-4">
-            <div class="h-8 w-8 border-4 border-t-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+        <!-- Date Navigation -->
+        <div class="flex justify-center items-center space-x-4 mb-6">
+            <button id="prevDay" class="px-4 py-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600 transition duration-300 ease-in-out">
+                &lt; Previous Day
+            </button>
+            <span id="currentDate" class="text-2xl font-semibold text-gray-800"></span>
+            <button id="nextDay" class="px-4 py-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600 transition duration-300 ease-in-out">
+                Next Day &gt;
+            </button>
         </div>
 
-        <!-- Attendance Registration Form -->
-        <section id="attendanceFormSection" class="p-6 bg-gray-50 rounded-xl shadow-inner hidden">
-            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Register Today's Attendance</h2>
-            <form id="attendanceForm" class="space-y-6">
-                <!-- Date Picker -->
-                <div class="flex flex-col md:flex-row md:items-center md:space-x-4">
-                    <label for="attendanceDate" class="text-gray-600 font-medium whitespace-nowrap">Date:</label>
-                    <input type="date" id="attendanceDate" name="attendanceDate" required class="flex-grow mt-1 md:mt-0 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                
-                <!-- Student List -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="studentList">
-                    <!-- Student list will be populated here by JavaScript -->
-                </div>
-
-                <!-- Submit Button -->
-                <div class="pt-4">
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition duration-300 ease-in-out shadow-lg transform hover:scale-105">
-                        Save Attendance
-                    </button>
-                </div>
-            </form>
-
-            <!-- AI-Powered Tools Section -->
-            <div class="pt-6 border-t border-gray-200 mt-6">
-                <h3 class="text-xl font-semibold text-gray-700 mb-4">✨ AI-Powered Tools</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button id="summarizeAttendanceBtn" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl transition duration-300 ease-in-out shadow-lg transform hover:scale-105">
-                        ✨ Summarize Attendance
-                    </button>
-                    <button id="draftEmailsBtn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-xl transition duration-300 ease-in-out shadow-lg transform hover:scale-105">
-                        ✨ Draft Absent Student Emails
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- Download Individual Student Data Section -->
-        <section id="downloadSection" class="p-6 bg-gray-50 rounded-xl shadow-inner hidden">
-            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Download Individual Student Data</h2>
-            <div class="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0">
-                <label for="studentSelect" class="text-gray-600 font-medium">Select Student:</label>
-                <select id="studentSelect" class="flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <!-- Student options will be populated here by JavaScript -->
-                </select>
-                <button id="downloadIndividualBtn" class="w-full md:w-auto bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-xl transition duration-300 ease-in-out shadow-lg transform hover:scale-105">
-                    Download
-                </button>
-            </div>
-        </section>
-
-        <!-- Download Period Data Section -->
-        <section id="downloadPeriodSection" class="p-6 bg-gray-50 rounded-xl shadow-inner hidden">
-            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Download Period Data</h2>
-            <div class="space-y-4">
-                <div class="flex flex-col md:flex-row md:items-center md:space-x-4">
-                    <label for="startDate" class="text-gray-600 font-medium whitespace-nowrap">Start Date:</label>
-                    <input type="date" id="startDate" name="startDate" class="flex-grow mt-1 md:mt-0 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div class="flex flex-col md:flex-row md:items-center md:space-x-4">
-                    <label for="endDate" class="text-gray-600 font-medium whitespace-nowrap">End Date:</label>
-                    <input type="date" id="endDate" name="endDate" class="flex-grow mt-1 md:mt-0 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div class="pt-4">
-                    <button id="downloadPeriodBtn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-xl transition duration-300 ease-in-out shadow-lg transform hover:scale-105">
-                        Download Period Data
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- Attendance History Section -->
-        <section id="attendanceHistorySection" class="p-6 bg-gray-50 rounded-xl shadow-inner hidden">
-            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Attendance History</h2>
-            <div id="attendanceHistory" class="overflow-x-auto relative">
-                <!-- History data will be populated here by JavaScript -->
-            </div>
-        </section>
-
-        <!-- Custom Toast/Message Box -->
-        <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 p-4 bg-gray-800 text-white rounded-lg shadow-lg transform transition-all duration-300 opacity-0 scale-95">
-            <span id="toastMessage"></span>
+        <!-- Student List -->
+        <div id="studentList" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+            <!-- Student items will be dynamically loaded here -->
         </div>
 
-        <!-- AI Output Modal -->
-        <div id="aiOutputModal" class="modal">
-            <div class="modal-content">
-                <span class="close-btn">&times;</span>
-                <h3 class="text-2xl font-bold mb-4 text-gray-800" id="modalTitle"></h3>
-                <textarea id="modalTextarea" class="w-full h-64 p-4 text-sm text-gray-700 bg-gray-100 rounded-lg border border-gray-300 resize-none focus:outline-none" readonly></textarea>
-                <button id="copyBtn" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl transition duration-300 ease-in-out shadow-lg">
-                    Copy to Clipboard
-                </button>
-            </div>
+        <!-- Save Button -->
+        <div class="mt-8 text-center">
+            <button id="saveAttendance" class="px-8 py-4 bg-blue-600 text-white text-xl font-bold rounded-xl shadow-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105">
+                Save Attendance to Google Sheet
+            </button>
         </div>
     </div>
 
-    <!-- Firebase Imports -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDocs, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <!-- The URL of your Google Apps Script web app -->
+    <!-- REPLACE THIS URL WITH YOUR DEPLOYED APPS SCRIPT URL -->
+    <script>
+        // NOTE: In a real app, this URL would point to your Google Apps Script Web App
+        // that handles the Google Sheets API calls securely.
+        const GOOGLE_SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyN_UkevQZkCpw_tYcNSUysrC0ivV3NadkDBmaj0YcNJpTEkj4f6uVCcF1j-j0dJCI3FQ/exec';
 
-        // IMPORTANT: Global variables are provided by the environment. Do not change these.
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const studentListDiv = document.getElementById('studentList');
+        const students = Array.from({length: 30}, (_, i) => ({ id: `student${i + 1}`, name: `Student ${i + 1}` }));
+        let currentDate = new Date(); // Start with today's date
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        // Utility function to format date as YYYY-MM-DD
+        const formatDate = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
 
-        // UI Elements
-        const loadingSpinner = document.getElementById('loading-spinner');
-        const attendanceFormSection = document.getElementById('attendanceFormSection');
-        const attendanceHistorySection = document.getElementById('attendanceHistorySection');
-        const attendanceForm = document.getElementById('attendanceForm');
-        const studentListContainer = document.getElementById('studentList');
-        const attendanceDateInput = document.getElementById('attendanceDate');
-        const attendanceHistoryTable = document.getElementById('attendanceHistory');
-        const userIdValue = document.getElementById('userIdValue');
-        const toast = document.getElementById('toast');
-        const toastMessage = document.getElementById('toastMessage');
-        const downloadIndividualBtn = document.getElementById('downloadIndividualBtn');
-        const studentSelect = document.getElementById('studentSelect');
-        const downloadSection = document.getElementById('downloadSection');
-        const downloadPeriodSection = document.getElementById('downloadPeriodSection');
-        const downloadPeriodBtn = document.getElementById('downloadPeriodBtn');
-        const startDateInput = document.getElementById('startDate');
-        const endDateInput = document.getElementById('endDate');
-        const summarizeAttendanceBtn = document.getElementById('summarizeAttendanceBtn');
-        const draftEmailsBtn = document.getElementById('draftEmailsBtn');
-        const aiOutputModal = document.getElementById('aiOutputModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalTextarea = document.getElementById('modalTextarea');
-        const modalCloseBtn = document.querySelector('#aiOutputModal .close-btn');
-        const copyBtn = document.getElementById('copyBtn');
+        // Renders the attendance UI for the current date
+        const renderAttendance = () => {
+            studentListDiv.innerHTML = ''; // Clear previous list
+            document.getElementById('currentDate').textContent = formatDate(currentDate);
 
-        let userId = null;
-        let isAuthReady = false;
+            if (students.length === 0) {
+                studentListDiv.innerHTML = '<p class="text-center text-gray-600">No students found.</p>';
+                return;
+            }
 
-        // --- Hardcoded Student Data ---
-        // You can edit this list with your actual student names.
-        const students = [
-            "John Doe", "Jane Smith", "Alice Johnson", "Bob Williams",
-            "Charlie Brown", "David Davis", "Eva White", "Frank Miller",
-            "Grace Wilson", "Henry Moore", "Ivy Taylor", "Jack Anderson",
-            "Karen Thomas", "Liam Jackson", "Mia Harris", "Noah Martin",
-            "Olivia Thompson", "Peter Garcia", "Quinn Robinson", "Rachel Clark",
-            "Sam Lewis", "Tina Walker", "Ursula King", "Victor Hall",
-            "Wendy Allen", "Xavier Young", "Yara Wright", "Zane Scott",
-            "Abigail Green", "Benjamin Baker"
-        ];
+            // Note: This version does not load previous attendance from Google Sheets
+            // as that would require a more complex backend function.
+            // All checkboxes will be unchecked by default.
 
-        // --- Helper Functions ---
-
-        /**
-         * Shows a temporary toast message to the user.
-         * @param {string} message The message to display.
-         */
-        function showToast(message) {
-            toastMessage.textContent = message;
-            toast.classList.remove('opacity-0', 'scale-95');
-            toast.classList.add('opacity-100', 'scale-100');
-            setTimeout(() => {
-                toast.classList.remove('opacity-100', 'scale-100');
-                toast.classList.add('opacity-0', 'scale-95');
-            }, 3000);
-        }
-
-        /**
-         * Shows or hides the loading spinner.
-         * @param {boolean} show Whether to show the spinner.
-         */
-        function setLoading(show) {
-            loadingSpinner.style.display = show ? 'flex' : 'none';
-        }
-
-        /**
-         * Renders the student list form dynamically.
-         */
-        function renderStudentList() {
-            studentListContainer.innerHTML = '';
-            studentSelect.innerHTML = '<option value="">Select a student...</option>'; // Clear and add placeholder
             students.forEach(student => {
-                // Populate attendance registration form
-                const studentCard = `
-                    <div class="bg-white p-4 rounded-xl shadow-md border border-gray-200 student-card">
-                        <h3 class="font-semibold text-gray-700">${student}</h3>
-                        <div class="mt-2 flex space-x-4">
-                            <!-- Hidden radio inputs -->
-                            <input type="radio" name="${student}" id="${student}-Present" value="Present" class="hidden" required>
-                            <input type="radio" name="${student}" id="${student}-Absent" value="Absent" class="hidden" checked>
-
-                            <!-- Present Circle Button -->
-                            <label for="${student}-Present" class="cursor-pointer">
-                                <div class="relative h-8 w-8 rounded-full bg-green-500 flex items-center justify-center text-white transition-all duration-200 ease-in-out transform hover:scale-110">
-                                    <svg class="h-6 w-6 checkmark hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                </div>
-                            </label>
-                            
-                            <!-- Absent Circle Button -->
-                            <label for="${student}-Absent" class="cursor-pointer">
-                                <div class="relative h-8 w-8 rounded-full bg-red-500 flex items-center justify-center text-white transition-all duration-200 ease-in-out transform hover:scale-110">
-                                    <svg class="h-6 w-6 checkmark hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
+                const studentItem = document.createElement('div');
+                studentItem.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-lg shadow-sm hover:bg-gray-100 transition duration-200 ease-in-out';
+                studentItem.innerHTML = `
+                    <span class="text-lg font-medium text-gray-700">${student.name}</span>
+                    <input type="checkbox" id="attendance-${student.id}" data-student-id="${student.id}"
+                           class="form-checkbox h-6 w-6 text-blue-600 rounded-md border-gray-300 focus:ring-blue-500">
                 `;
-                studentListContainer.innerHTML += studentCard;
-
-                // Populate student select dropdown for download
-                const option = document.createElement('option');
-                option.value = student;
-                option.textContent = student;
-                studentSelect.appendChild(option);
+                studentListDiv.appendChild(studentItem);
             });
-            
-            // Set default checkmarks for the 'Absent' option
-            updateAllCheckmarks();
+        };
 
-            // Set default date to today
-            const today = new Date().toISOString().split('T')[0];
-            attendanceDateInput.value = today;
-        }
-
-        /**
-         * Updates the visibility of the checkmark SVG based on the radio button state.
-         * This function handles a single student card.
-         * @param {HTMLElement} card The student card element.
-         */
-        function updateCheckmarks(card) {
-            // Find the checked radio button within the card
-            const checkedInput = card.querySelector('input[type="radio"]:checked');
-            
-            // Hide all checkmarks in the card
-            card.querySelectorAll('.checkmark').forEach(checkmark => {
-                checkmark.classList.add('hidden');
+        // Function to save attendance to the Google Sheet
+        const saveAttendance = async () => {
+            const attendanceDate = formatDate(currentDate);
+            const attendanceData = {};
+            students.forEach(student => {
+                const checkbox = document.getElementById(`attendance-${student.id}`);
+                if (checkbox) {
+                    attendanceData[student.id] = checkbox.checked;
+                }
             });
 
-            // Show the checkmark for the selected option
-            if (checkedInput) {
-                const checkmarkSVG = card.querySelector(`label[for="${checkedInput.id}"] .checkmark`);
-                if (checkmarkSVG) {
-                    checkmarkSVG.classList.remove('hidden');
-                }
-            }
-        }
-
-        /**
-         * Updates all checkmarks on the page.
-         */
-        function updateAllCheckmarks() {
-             document.querySelectorAll('.student-card').forEach(updateCheckmarks);
-        }
-
-        /**
-         * Loads and displays the attendance history from Firestore.
-         */
-        async function loadAttendanceHistory() {
-            if (!isAuthReady || !userId) return;
-
-            setLoading(true);
-            attendanceHistoryTable.innerHTML = ''; // Clear previous data
-            try {
-                const attendanceCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/attendance`);
-                const q = query(attendanceCollectionRef);
-                const querySnapshot = await getDocs(q);
-
-                if (querySnapshot.empty) {
-                    attendanceHistoryTable.innerHTML = '<p class="text-center text-gray-500 p-4">No attendance records found.</p>';
-                    return;
-                }
-
-                const allRecords = [];
-                querySnapshot.forEach(doc => {
-                    const date = doc.id;
-                    const data = doc.data();
-                    allRecords.push({ date, data });
-                });
-
-                // Sort records by date descending
-                allRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-                // Generate table header
-                let tableHtml = `
-                    <table class="min-w-full divide-y divide-gray-200 rounded-lg overflow-hidden">
-                        <thead class="bg-gray-200">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Students</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                `;
-
-                // Generate table rows for each record
-                allRecords.forEach(record => {
-                    const { date, data } = record;
-                    let studentSummary = '';
-                    students.forEach(student => {
-                        const status = data[student] || 'N/A';
-                        let statusColor = 'text-gray-500';
-                        switch (status) {
-                            case 'Present':
-                                statusColor = 'text-green-600';
-                                break;
-                            case 'Absent':
-                                statusColor = 'text-red-600';
-                                break;
-                            default: // Handles 'Late' from old records or 'N/A'
-                                statusColor = 'text-gray-500';
-                                break;
-                        }
-                        studentSummary += `
-                            <div class="flex items-center justify-between text-sm py-1">
-                                <span class="font-medium text-gray-800">${student}:</span>
-                                <span class="font-semibold ${statusColor}">${status}</span>
-                            </div>
-                        `;
-                    });
-
-                    tableHtml += `
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${date}</td>
-                            <td class="px-6 py-4">
-                                <div class="max-h-48 overflow-y-auto">
-                                    ${studentSummary}
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                });
-
-                tableHtml += `
-                        </tbody>
-                    </table>
-                `;
-                attendanceHistoryTable.innerHTML = tableHtml;
-
-            } catch (error) {
-                console.error("Error loading attendance history:", error);
-                showToast("Failed to load history. Check the console for details.");
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        /**
-         * Main function to handle form submission.
-         */
-        async function handleFormSubmit(event) {
-            event.preventDefault();
-            if (!isAuthReady || !userId) {
-                showToast("Authentication not ready. Please wait a moment.");
-                return;
-            }
-
-            setLoading(true);
+            // Prepare the data to be sent to the backend script
+            const payload = {
+                date: attendanceDate,
+                attendance: attendanceData
+            };
 
             try {
-                const date = attendanceDateInput.value;
-                const attendanceData = {};
-                
-                students.forEach(student => {
-                    const status = document.querySelector(`input[name="${student}"]:checked`).value;
-                    attendanceData[student] = status;
-                });
-
-                // Create a document reference with the date as the ID
-                const attendanceDocRef = doc(db, `artifacts/${appId}/users/${userId}/attendance`, date);
-                
-                // Save the data to Firestore
-                await setDoc(attendanceDocRef, attendanceData);
-
-                showToast("Attendance saved successfully!");
-                // No need to reset the form, user might want to download. Just reload history.
-                await loadAttendanceHistory(); // Refresh history
-            } catch (error) {
-                console.error("Error saving attendance:", error);
-                showToast("Failed to save attendance. Check the console for details.");
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        /**
-         * Downloads data as a CSV file.
-         * @param {string} csv The CSV data to download.
-         * @param {string} filename The name of the file.
-         */
-        function downloadCSV(csv, filename) {
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', filename);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        /**
-         * Handles the download of a single student's attendance history.
-         */
-        async function handleDownloadIndividual() {
-            if (!isAuthReady || !userId) {
-                showToast("Authentication not ready. Please wait a moment.");
-                return;
-            }
-
-            const selectedStudent = studentSelect.value;
-            if (!selectedStudent) {
-                showToast("Please select a student first.");
-                return;
-            }
-
-            setLoading(true);
-            try {
-                const attendanceCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/attendance`);
-                const q = query(attendanceCollectionRef);
-                const querySnapshot = await getDocs(q);
-
-                if (querySnapshot.empty) {
-                    showToast("No attendance history found.");
-                    setLoading(false);
+                // Simulate an API call to a backend script
+                if (GOOGLE_SHEETS_WEB_APP_URL === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE') {
+                    console.error("Please replace the placeholder URL with your Google Apps Script URL.");
+                    alertMessage("Please set up your Google Apps Script first!", "red");
                     return;
                 }
                 
-                let csv = 'Date,Status\n';
-                querySnapshot.forEach(doc => {
-                    const date = doc.id;
-                    const data = doc.data();
-                    const status = data[selectedStudent] || 'N/A';
-                    csv += `${date},${status}\n`;
-                });
-                
-                downloadCSV(csv, `attendance_${selectedStudent}.csv`);
-
-            } catch (error) {
-                console.error("Error downloading individual student data:", error);
-                showToast("Failed to download data. Check the console for details.");
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        /**
-         * Handles the download of attendance data for a specific period.
-         */
-        async function handleDownloadPeriod() {
-            if (!isAuthReady || !userId) {
-                showToast("Authentication not ready. Please wait a moment.");
-                return;
-            }
-
-            const startDate = startDateInput.value;
-            const endDate = endDateInput.value;
-
-            if (!startDate || !endDate) {
-                showToast("Please select both a start and end date.");
-                return;
-            }
-
-            if (new Date(startDate) > new Date(endDate)) {
-                showToast("The end date cannot be before the start date.");
-                return;
-            }
-            
-            setLoading(true);
-
-            try {
-                const attendanceCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/attendance`);
-                const querySnapshot = await getDocs(attendanceCollectionRef);
-
-                if (querySnapshot.empty) {
-                    showToast("No attendance records found for this period.");
-                    setLoading(false);
-                    return;
-                }
-
-                const filteredRecords = [];
-                querySnapshot.forEach(doc => {
-                    const date = doc.id;
-                    if (date >= startDate && date <= endDate) {
-                        filteredRecords.push({ date, data: doc.data() });
-                    }
+                const response = await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
                 });
 
-                if (filteredRecords.length === 0) {
-                    showToast("No attendance records found for this period.");
-                    setLoading(false);
-                    return;
-                }
-
-                // Sort the filtered records by date
-                filteredRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-                // Generate CSV header
-                let csv = 'Date,' + students.join(',') + '\n';
-
-                // Generate CSV rows
-                filteredRecords.forEach(record => {
-                    let row = `${record.date},`;
-                    const statuses = students.map(student => record.data[student] || 'N/A');
-                    row += statuses.join(',') + '\n';
-                    csv += row;
-                });
-
-                downloadCSV(csv, `attendance_period_${startDate}_to_${endDate}.csv`);
-                showToast("Period data downloaded successfully!");
-
-            } catch (error) {
-                console.error("Error downloading period data:", error);
-                showToast("Failed to download data. Check the console for details.");
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        // --- LLM API Integration Functions ---
-
-        /**
-         * Generic function to make an LLM API call with exponential backoff.
-         * @param {string} prompt The text prompt for the LLM.
-         * @returns {Promise<string>} The generated text response.
-         */
-        async function callLLM(prompt) {
-            const maxRetries = 3;
-            let retryCount = 0;
-            let delay = 1000; // 1 second
-
-            while (retryCount < maxRetries) {
-                try {
-                    let chatHistory = [];
-                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-                    const payload = { contents: chatHistory };
-                    const apiKey = "";
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    if (!response.ok) {
-                         if (response.status === 429) {
-                            // Too many requests, try again
-                            throw new Error('API rate limit exceeded');
-                        } else {
-                            throw new Error(`API error: ${response.statusText}`);
-                        }
-                    }
-
-                    const result = await response.json();
-                    
-                    if (result.candidates && result.candidates.length > 0 &&
-                        result.candidates[0].content && result.candidates[0].content.parts &&
-                        result.candidates[0].content.parts.length > 0) {
-                        return result.candidates[0].content.parts[0].text;
-                    } else {
-                        throw new Error("Invalid API response format");
-                    }
-                } catch (error) {
-                    console.error(`Attempt ${retryCount + 1} failed:`, error.message);
-                    if (retryCount < maxRetries - 1) {
-                        await new Promise(res => setTimeout(res, delay));
-                        delay *= 2; // Exponential backoff
-                        retryCount++;
-                    } else {
-                        throw new Error("Failed to call LLM after multiple retries.");
-                    }
-                }
-            }
-        }
-
-        /**
-         * Generates an attendance summary using the Gemini API.
-         */
-        async function generateAttendanceSummary() {
-            setLoading(true);
-            try {
-                const date = attendanceDateInput.value;
-                const absentStudents = [];
-                const presentStudents = [];
-
-                students.forEach(student => {
-                    const status = document.querySelector(`input[name="${student}"]:checked`).value;
-                    if (status === 'Absent') {
-                        absentStudents.push(student);
-                    } else {
-                        presentStudents.push(student);
-                    }
-                });
-
-                const absentStudentList = absentStudents.length > 0 ? absentStudents.join(', ') : 'None';
-                const presentStudentList = presentStudents.length > 0 ? presentStudents.join(', ') : 'None';
-                const attendanceRate = (presentStudents.length / students.length) * 100;
-                
-                const prompt = `Act as a helpful teacher. Summarize the following attendance data for a class of ${students.length} students on ${date}. Be concise and professional.
-                Present students: ${presentStudentList}
-                Absent students: ${absentStudentList}
-                Total attendance rate: ${attendanceRate.toFixed(2)}%`;
-                
-                const response = await callLLM(prompt);
-                showModal("Attendance Summary", response);
-
-            } catch (error) {
-                showToast("Failed to generate summary. Please try again later.");
-                console.error(error);
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        /**
-         * Generates an email draft for absent students using the Gemini API.
-         */
-        async function draftAbsentEmails() {
-            setLoading(true);
-            try {
-                const date = attendanceDateInput.value;
-                const absentStudents = [];
-                students.forEach(student => {
-                    const status = document.querySelector(`input[name="${student}"]:checked`).value;
-                    if (status === 'Absent') {
-                        absentStudents.push(student);
-                    }
-                });
-
-                if (absentStudents.length === 0) {
-                    showToast("No students are marked as absent for today.");
-                    setLoading(false);
-                    return;
-                }
-
-                const absentStudentList = absentStudents.join(', ');
-
-                const prompt = `Act as a teacher from Street Madrassa drafting an email to the parents of absent students. The email should be polite, concise, and professional. The date is ${date}. The students who were absent are: ${absentStudentList}. The email should inform the parents about the absence and suggest they contact the school office if they have any questions.`;
-                
-                const response = await callLLM(prompt);
-                showModal("Email Draft for Absent Students", response);
-
-            } catch (error) {
-                showToast("Failed to draft emails. Please try again later.");
-                console.error(error);
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        /**
-         * Shows the AI output modal with the given title and text.
-         * @param {string} title The title for the modal.
-         * @param {string} text The text content to display.
-         */
-        function showModal(title, text) {
-            modalTitle.textContent = title;
-            modalTextarea.value = text;
-            aiOutputModal.style.display = 'block';
-        }
-
-        /**
-         * Hides the AI output modal.
-         */
-        function hideModal() {
-            aiOutputModal.style.display = 'none';
-        }
-
-        // --- Event Listeners and Initialization ---
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // Check for authentication state
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    userId = user.uid;
-                    isAuthReady = true;
-                    userIdValue.textContent = userId;
-                    attendanceFormSection.classList.remove('hidden');
-                    attendanceHistorySection.classList.remove('hidden');
-                    downloadSection.classList.remove('hidden');
-                    downloadPeriodSection.classList.remove('hidden');
-                    renderStudentList();
-                    await loadAttendanceHistory();
+                if (response.ok) {
+                    alertMessage("Attendance saved to Google Sheet!", "green");
                 } else {
-                    // Try to sign in with custom token if available, otherwise anonymously
-                    try {
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    } catch (error) {
-                        console.error("Authentication failed:", error);
-                        showToast("Authentication failed. Cannot access data.");
-                    }
+                    const errorText = await response.text();
+                    throw new Error(errorText || "Unknown error occurred.");
                 }
-            });
 
-            // Add form submit listener
-            attendanceForm.addEventListener('submit', handleFormSubmit);
+            } catch (error) {
+                console.error("Error saving attendance to Google Sheet:", error);
+                alertMessage("Error saving attendance: " + error.message, "red");
+            }
+        };
 
-            // Add a global click listener to handle the new custom radio buttons
-            document.getElementById('studentList').addEventListener('click', (event) => {
-                const label = event.target.closest('label');
-                if (label) {
-                    const studentCard = label.closest('.student-card');
-                    // Manually check the associated radio button
-                    const associatedInput = document.getElementById(label.getAttribute('for'));
-                    if (associatedInput) {
-                        associatedInput.checked = true;
-                    }
-                    // Update the checkmarks for the card
-                    updateCheckmarks(studentCard);
-                }
-            });
-            
-            // Add download button listeners
-            downloadIndividualBtn.addEventListener('click', handleDownloadIndividual);
-            downloadPeriodBtn.addEventListener('click', handleDownloadPeriod);
+        // Simple alert message function (replaces alert())
+        const alertMessage = (message, type) => {
+            const existingAlert = document.getElementById('customAlert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
 
-            // Add LLM button listeners
-            summarizeAttendanceBtn.addEventListener('click', generateAttendanceSummary);
-            draftEmailsBtn.addEventListener('click', draftAbsentEmails);
+            const alertDiv = document.createElement('div');
+            alertDiv.id = 'customAlert';
+            alertDiv.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg text-white z-50 ${type === 'green' ? 'bg-green-500' : 'bg-red-500'}`;
+            alertDiv.textContent = message;
+            document.body.appendChild(alertDiv);
 
-            // Add modal functionality
-            modalCloseBtn.addEventListener('click', hideModal);
-            window.addEventListener('click', (event) => {
-                if (event.target === aiOutputModal) {
-                    hideModal();
-                }
-            });
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 3000);
+        };
 
-            // Add copy button functionality
-            copyBtn.addEventListener('click', () => {
-                modalTextarea.select();
-                document.execCommand('copy');
-                showToast("Copied to clipboard!");
-            });
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', renderAttendance);
+
+        document.getElementById('prevDay').addEventListener('click', () => {
+            currentDate.setDate(currentDate.getDate() - 1);
+            renderAttendance();
         });
+
+        document.getElementById('nextDay').addEventListener('click', () => {
+            currentDate.setDate(currentDate.getDate() + 1);
+            renderAttendance();
+        });
+
+        document.getElementById('saveAttendance').addEventListener('click', saveAttendance);
     </script>
 </body>
 </html>
