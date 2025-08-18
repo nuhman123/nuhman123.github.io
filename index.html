@@ -3,178 +3,430 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Attendance Tracker (Google Sheets)</title>
-    <!-- Tailwind CSS CDN -->
+    <title>University Attendance System</title>
+    <!-- Tailwind CSS CDN for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom scrollbar for better aesthetics */
-        ::-webkit-scrollbar {
-            width: 8px;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
         }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            justify-content: center;
+            align-items: center;
         }
-        ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
+        .modal-content {
+            background-color: #ffffff;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            max-width: 400px;
+            text-align: center;
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4 font-sans">
-    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl">
-        <h1 class="text-4xl font-extrabold text-center text-green-700 mb-8">Google Sheets Attendance Tracker</h1>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-        <!-- Date Navigation -->
-        <div class="flex justify-center items-center space-x-4 mb-6">
-            <button id="prevDay" class="px-4 py-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600 transition duration-300 ease-in-out">
-                &lt; Previous Day
-            </button>
-            <span id="currentDate" class="text-2xl font-semibold text-gray-800"></span>
-            <button id="nextDay" class="px-4 py-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600 transition duration-300 ease-in-out">
-                Next Day &gt;
-            </button>
+    <!-- Main Container -->
+    <div id="app" class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-4xl flex flex-col space-y-8">
+
+        <!-- Header -->
+        <header class="text-center">
+            <h1 class="text-4xl font-extrabold text-gray-800">University Attendance System</h1>
+            <p class="text-gray-500 mt-2">Manage your student attendance with ease.</p>
+        </header>
+
+        <!-- Loading Indicator -->
+        <div id="loading-indicator" class="flex items-center justify-center p-8 hidden">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+        </div>
+        
+        <!-- Gemini Summary Loading Indicator -->
+        <div id="summary-loading" class="flex items-center justify-center p-4 hidden">
+            <div class="animate-spin rounded-full h-8 w-8 border-4 border-purple-500 border-t-transparent"></div>
+            <p class="ml-4 text-purple-600">Generating summary...</p>
         </div>
 
-        <!-- Student List -->
-        <div id="studentList" class="space-y-4 max-h-96 overflow-y-auto pr-2">
-            <!-- Student items will be dynamically loaded here -->
-        </div>
+        <!-- Main Content Area -->
+        <div id="main-content" class="flex-grow hidden">
 
-        <!-- Save Button -->
-        <div class="mt-8 text-center">
-            <button id="saveAttendance" class="px-8 py-4 bg-blue-600 text-white text-xl font-bold rounded-xl shadow-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105">
-                Save Attendance to Google Sheet
-            </button>
+            <!-- Authentication State Display -->
+            <div class="mb-4 text-center text-sm text-gray-500">
+                <span id="user-info"></span>
+            </div>
+
+            <!-- View Toggles -->
+            <div class="flex justify-center space-x-4 mb-6">
+                <button id="show-dashboard-btn" class="px-6 py-2 rounded-full text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 font-medium">View Dashboard</button>
+                <button id="show-register-btn" class="px-6 py-2 rounded-full text-blue-600 border border-blue-600 hover:bg-blue-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 font-medium">Register Attendance</button>
+            </div>
+
+            <!-- Attendance Registration Section -->
+            <section id="register-section" class="space-y-6 p-6 bg-gray-50 rounded-lg shadow-inner">
+                <h2 class="text-2xl font-bold text-gray-700">Register Attendance</h2>
+                <div class="flex items-center space-x-4">
+                    <label for="date-input" class="text-gray-600 font-medium">Select Date:</label>
+                    <input type="date" id="date-input" class="flex-grow rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200 p-2">
+                </div>
+
+                <!-- Student List for Registration -->
+                <div id="student-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Student cards will be dynamically inserted here -->
+                </div>
+
+                <div class="flex justify-end pt-4">
+                    <button id="save-attendance-btn" class="px-8 py-3 bg-green-600 text-white font-bold rounded-full shadow-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50">Save Attendance</button>
+                </div>
+            </section>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard-section" class="hidden space-y-6 p-6 bg-gray-50 rounded-lg shadow-inner">
+                <h2 class="text-2xl font-bold text-gray-700">Attendance Dashboard</h2>
+                
+                <div class="flex items-center space-x-4 mb-4">
+                    <label for="dashboard-date-filter" class="text-gray-600 font-medium">Filter by Date:</label>
+                    <input type="date" id="dashboard-date-filter" class="rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200 p-2">
+                </div>
+                
+                <!-- Gemini API-powered Summary Button -->
+                <button id="summarize-btn" class="px-6 py-2 bg-purple-600 text-white font-bold rounded-full shadow-lg hover:bg-purple-700 transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-purple-500 focus:ring-opacity-50">
+                    <span class="mr-2">✨</span>Summarize Attendance
+                </button>
+                
+                <!-- Summary Output Area -->
+                <div id="summary-output" class="p-4 bg-purple-50 text-purple-800 border-l-4 border-purple-400 rounded-lg hidden">
+                    <p class="font-bold">Daily Summary:</p>
+                    <p id="summary-text" class="mt-2 text-sm"></p>
+                </div>
+
+                <!-- Attendance Table -->
+                <div class="overflow-x-auto rounded-lg shadow-md mt-6">
+                    <table class="min-w-full divide-y divide-gray-200 bg-white">
+                        <thead class="bg-blue-600">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Student Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendance-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Attendance records will be dynamically inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
         </div>
     </div>
 
-    <!-- The URL of your Google Apps Script web app -->
-    <!-- REPLACE THIS URL WITH YOUR DEPLOYED APPS SCRIPT URL -->
-    <script>
-        // NOTE: In a real app, this URL would point to your Google Apps Script Web App
-        // that handles the Google Sheets API calls securely.
-        const GOOGLE_SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyN_UkevQZkCpw_tYcNSUysrC0ivV3NadkDBmaj0YcNJpTEkj4f6uVCcF1j-j0dJCI3FQ/exec';
+    <!-- Custom Modal for Alerts -->
+    <div id="custom-modal" class="modal">
+        <div class="modal-content">
+            <p id="modal-message" class="text-gray-800 text-lg mb-4"></p>
+            <button id="close-modal-btn" class="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors duration-200">OK</button>
+        </div>
+    </div>
 
-        const studentListDiv = document.getElementById('studentList');
-        const students = Array.from({length: 30}, (_, i) => ({ id: `student${i + 1}`, name: `Student ${i + 1}` }));
-        let currentDate = new Date(); // Start with today's date
+    <!-- Firebase SDKs from CDN -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Utility function to format date as YYYY-MM-DD
-        const formatDate = (date) => {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        // Renders the attendance UI for the current date
-        const renderAttendance = () => {
-            studentListDiv.innerHTML = ''; // Clear previous list
-            document.getElementById('currentDate').textContent = formatDate(currentDate);
+        let db, auth, userId;
+        const studentList = [
+            'Alice Johnson', 'Bob Williams', 'Charlie Brown', 'Diana Smith', 'Edward Davis',
+            'Fiona Wilson', 'George Miller', 'Hannah Moore', 'Ian Taylor', 'Julia Anderson',
+            'Kevin Thomas', 'Laura Jackson', 'Michael White', 'Nancy Harris', 'Oscar Martin',
+            'Pamela Garcia', 'Quentin Rodriguez', 'Rachel Lopez', 'Steven Lewis', 'Tina Walker',
+            'Victor Hall', 'Wendy Young', 'Xavier King', 'Yara Wright', 'Zane Scott',
+            'Isabella Green', 'Jacob Baker', 'Ava Adams', 'Mason Hill', 'Sophia Carter'
+        ];
+        
+        let attendanceData = [];
+        let registrationState = {};
 
-            if (students.length === 0) {
-                studentListDiv.innerHTML = '<p class="text-center text-gray-600">No students found.</p>';
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const summaryLoading = document.getElementById('summary-loading');
+        const mainContent = document.getElementById('main-content');
+        const showDashboardBtn = document.getElementById('show-dashboard-btn');
+        const showRegisterBtn = document.getElementById('show-register-btn');
+        const registerSection = document.getElementById('register-section');
+        const dashboardSection = document.getElementById('dashboard-section');
+        const dateInput = document.getElementById('date-input');
+        const studentListContainer = document.getElementById('student-list');
+        const saveAttendanceBtn = document.getElementById('save-attendance-btn');
+        const dashboardDateFilter = document.getElementById('dashboard-date-filter');
+        const attendanceTableBody = document.getElementById('attendance-table-body');
+        const userInfoSpan = document.getElementById('user-info');
+        const customModal = document.getElementById('custom-modal');
+        const modalMessage = document.getElementById('modal-message');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const summarizeBtn = document.getElementById('summarize-btn');
+        const summaryOutput = document.getElementById('summary-output');
+        const summaryText = document.getElementById('summary-text');
+
+        // Function to show a custom modal instead of alert()
+        function showModal(message) {
+            modalMessage.textContent = message;
+            customModal.style.display = 'flex';
+        }
+
+        closeModalBtn.addEventListener('click', () => {
+            customModal.style.display = 'none';
+        });
+
+        // Initialize Firebase and Authentication
+        async function initializeFirebase() {
+            try {
+                loadingIndicator.classList.remove('hidden');
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Sign in with the provided custom token or anonymously
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // Get the current user ID
+                userId = auth.currentUser?.uid || crypto.randomUUID();
+                userInfoSpan.textContent = `User ID: ${userId}`;
+
+                // Fetch and render data
+                setupRealtimeListeners();
+                renderStudentRegistration();
+                setTodayDate();
+
+                loadingIndicator.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                showModal("Failed to initialize the application. Please try again.");
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        // Set the date input to today's date by default
+        function setTodayDate() {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+            dashboardDateFilter.value = today;
+        }
+
+        // Setup real-time listeners for attendance data
+        function setupRealtimeListeners() {
+            const attendanceCollectionPath = `/artifacts/${appId}/users/${userId}/attendance`;
+            const q = query(collection(db, attendanceCollectionPath));
+
+            onSnapshot(q, (querySnapshot) => {
+                attendanceData = [];
+                querySnapshot.forEach((doc) => {
+                    attendanceData.push(doc.data());
+                });
+                console.log("Attendance data updated:", attendanceData);
+                renderDashboard();
+            }, (error) => {
+                console.error("Error listening to attendance data:", error);
+                showModal("Error fetching attendance data. Please check your connection.");
+            });
+        }
+
+        // Render the list of students for attendance registration
+        function renderStudentRegistration() {
+            studentListContainer.innerHTML = '';
+            registrationState = {};
+
+            studentList.forEach(studentName => {
+                const studentId = studentName.replace(/\s/g, '-').toLowerCase();
+                registrationState[studentId] = 'present'; // Default to present
+
+                const studentCard = document.createElement('div');
+                studentCard.className = 'bg-white rounded-lg p-4 shadow-md flex items-center justify-between transition-all duration-200 hover:shadow-lg';
+                studentCard.innerHTML = `
+                    <p class="text-gray-800 font-medium">${studentName}</p>
+                    <div class="flex space-x-2">
+                        <button id="present-${studentId}" class="status-btn px-4 py-1 rounded-full text-sm font-semibold bg-green-200 text-green-800 transition-colors duration-200" data-id="${studentId}" data-status="present">Present</button>
+                        <button id="absent-${studentId}" class="status-btn px-4 py-1 rounded-full text-sm font-semibold bg-gray-200 text-gray-800 transition-colors duration-200" data-id="${studentId}" data-status="absent">Absent</button>
+                    </div>
+                `;
+                studentListContainer.appendChild(studentCard);
+            });
+
+            // Add event listeners for status buttons
+            document.querySelectorAll('.status-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const studentId = event.target.dataset.id;
+                    const status = event.target.dataset.status;
+
+                    // Update local state
+                    registrationState[studentId] = status;
+
+                    // Update button styles
+                    const presentBtn = document.getElementById(`present-${studentId}`);
+                    const absentBtn = document.getElementById(`absent-${studentId}`);
+                    if (status === 'present') {
+                        presentBtn.classList.add('bg-green-600', 'text-white');
+                        presentBtn.classList.remove('bg-green-200', 'text-green-800');
+                        absentBtn.classList.add('bg-gray-200', 'text-gray-800');
+                        absentBtn.classList.remove('bg-red-600', 'text-white');
+                    } else {
+                        absentBtn.classList.add('bg-red-600', 'text-white');
+                        absentBtn.classList.remove('bg-gray-200', 'text-gray-800');
+                        presentBtn.classList.add('bg-green-200', 'text-green-800');
+                        presentBtn.classList.remove('bg-green-600', 'text-white');
+                    }
+                });
+            });
+        }
+
+        // Save attendance data to Firestore
+        saveAttendanceBtn.addEventListener('click', async () => {
+            const date = dateInput.value;
+            if (!date) {
+                showModal("Please select a date.");
                 return;
             }
 
-            // Note: This version does not load previous attendance from Google Sheets
-            // as that would require a more complex backend function.
-            // All checkboxes will be unchecked by default.
-
-            students.forEach(student => {
-                const studentItem = document.createElement('div');
-                studentItem.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-lg shadow-sm hover:bg-gray-100 transition duration-200 ease-in-out';
-                studentItem.innerHTML = `
-                    <span class="text-lg font-medium text-gray-700">${student.name}</span>
-                    <input type="checkbox" id="attendance-${student.id}" data-student-id="${student.id}"
-                           class="form-checkbox h-6 w-6 text-blue-600 rounded-md border-gray-300 focus:ring-blue-500">
-                `;
-                studentListDiv.appendChild(studentItem);
-            });
-        };
-
-        // Function to save attendance to the Google Sheet
-        const saveAttendance = async () => {
-            const attendanceDate = formatDate(currentDate);
-            const attendanceData = {};
-            students.forEach(student => {
-                const checkbox = document.getElementById(`attendance-${student.id}`);
-                if (checkbox) {
-                    attendanceData[student.id] = checkbox.checked;
-                }
-            });
-
-            // Prepare the data to be sent to the backend script
-            const payload = {
-                date: attendanceDate,
-                attendance: attendanceData
-            };
-
             try {
-                // Simulate an API call to a backend script
-                if (GOOGLE_SHEETS_WEB_APP_URL === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE') {
-                    console.error("Please replace the placeholder URL with your Google Apps Script URL.");
-                    alertMessage("Please set up your Google Apps Script first!", "red");
-                    return;
+                for (const studentId in registrationState) {
+                    const studentName = studentId.replace(/-/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                    const status = registrationState[studentId];
+                    const docId = `${date}-${studentId}`;
+                    const attendanceCollectionPath = `/artifacts/${appId}/users/${userId}/attendance`;
+
+                    await setDoc(doc(db, attendanceCollectionPath, docId), {
+                        studentId: studentId,
+                        studentName: studentName,
+                        date: date,
+                        status: status,
+                        timestamp: serverTimestamp()
+                    });
                 }
-                
-                const response = await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
+                showModal("Attendance saved successfully!");
+                console.log("Attendance saved successfully!");
+
+                // Reset the registration state after saving
+                renderStudentRegistration();
+
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                showModal("An error occurred while saving attendance. Please try again.");
+            }
+        });
+
+        // Render the dashboard with filtered data
+        function renderDashboard() {
+            const filterDate = dashboardDateFilter.value;
+            attendanceTableBody.innerHTML = '';
+            summaryOutput.classList.add('hidden'); // Hide summary output when changing date
+
+            const filteredData = attendanceData.filter(record => record.date === filterDate);
+            
+            if (filteredData.length === 0) {
+                attendanceTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="px-6 py-4 text-center text-gray-500 italic">No attendance records found for this date.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            filteredData.forEach(record => {
+                const row = document.createElement('tr');
+                const statusClass = record.status === 'present' ? 'text-green-600' : 'text-red-600';
+                const statusIcon = record.status === 'present' ? '✓' : '✗';
+                row.className = 'hover:bg-gray-100 transition-colors duration-100';
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${record.studentName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium ${statusClass}">${statusIcon} ${record.status.charAt(0).toUpperCase() + record.status.slice(1)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.date}</td>
+                `;
+                attendanceTableBody.appendChild(row);
+            });
+        }
+        
+        // --- Gemini API Integration ---
+        summarizeBtn.addEventListener('click', async () => {
+            const filterDate = dashboardDateFilter.value;
+            const filteredData = attendanceData.filter(record => record.date === filterDate);
+            
+            if (filteredData.length === 0) {
+                showModal("No attendance data to summarize for this date.");
+                return;
+            }
+            
+            summaryOutput.classList.add('hidden');
+            summaryLoading.classList.remove('hidden');
+
+            const prompt = `Given the following JSON attendance data for a class, provide a concise summary for a teacher. State the total number of students, the total number of present students, and the total number of absent students. Also, list the names of the absent students. The date is ${filterDate}. The data is: ${JSON.stringify(filteredData)}`;
+
+            const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+            const payload = { contents: chatHistory };
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            
+            try {
+                const response = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
-                if (response.ok) {
-                    alertMessage("Attendance saved to Google Sheet!", "green");
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    summaryText.textContent = text;
+                    summaryOutput.classList.remove('hidden');
                 } else {
-                    const errorText = await response.text();
-                    throw new Error(errorText || "Unknown error occurred.");
+                    summaryText.textContent = "Could not generate summary. Please try again.";
+                    summaryOutput.classList.remove('hidden');
                 }
-
             } catch (error) {
-                console.error("Error saving attendance to Google Sheet:", error);
-                alertMessage("Error saving attendance: " + error.message, "red");
+                console.error("Gemini API call failed:", error);
+                summaryText.textContent = "An error occurred while generating the summary. Please try again.";
+                summaryOutput.classList.remove('hidden');
+            } finally {
+                summaryLoading.classList.add('hidden');
             }
-        };
-
-        // Simple alert message function (replaces alert())
-        const alertMessage = (message, type) => {
-            const existingAlert = document.getElementById('customAlert');
-            if (existingAlert) {
-                existingAlert.remove();
-            }
-
-            const alertDiv = document.createElement('div');
-            alertDiv.id = 'customAlert';
-            alertDiv.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg text-white z-50 ${type === 'green' ? 'bg-green-500' : 'bg-red-500'}`;
-            alertDiv.textContent = message;
-            document.body.appendChild(alertDiv);
-
-            setTimeout(() => {
-                alertDiv.remove();
-            }, 3000);
-        };
-
-        // Event Listeners
-        document.addEventListener('DOMContentLoaded', renderAttendance);
-
-        document.getElementById('prevDay').addEventListener('click', () => {
-            currentDate.setDate(currentDate.getDate() - 1);
-            renderAttendance();
         });
 
-        document.getElementById('nextDay').addEventListener('click', () => {
-            currentDate.setDate(currentDate.getDate() + 1);
-            renderAttendance();
+        // Event listeners for UI navigation
+        showDashboardBtn.addEventListener('click', () => {
+            dashboardSection.classList.remove('hidden');
+            registerSection.classList.add('hidden');
+            renderDashboard(); // Re-render dashboard with current data
         });
 
-        document.getElementById('saveAttendance').addEventListener('click', saveAttendance);
+        showRegisterBtn.addEventListener('click', () => {
+            registerSection.classList.remove('hidden');
+            dashboardSection.classList.add('hidden');
+        });
+
+        dashboardDateFilter.addEventListener('change', renderDashboard);
+
+        // Start the application
+        window.onload = initializeFirebase;
+
     </script>
 </body>
 </html>
