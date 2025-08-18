@@ -1,21 +1,214 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple To-Do List</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <div class="container">
-        <h1>My To-Do List</h1>
-        <div class="input-area">
-            <input type="text" id="task-input" placeholder="Add a new task...">
-            <button id="add-btn">Add</button>
-        </div>
-        <ul id="task-list">
-            </ul>
+    <!-- Date Navigation -->
+    <div class="flex justify-center items-center space-x-4 mb-6">
+        <button id="prevDay" class="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition duration-300 ease-in-out">
+            &lt; Previous Day
+        </button>
+        <span id="currentDate" class="text-2xl font-semibold text-gray-800"></span>
+        <button id="nextDay" class="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition duration-300 ease-in-out">
+            Next Day &gt;
+        </button>
     </div>
-    <script src="script.js"></script>
-</body>
-</html>
+
+    <!-- Student List -->
+    <div id="studentList" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+        <!-- Initial loading message -->
+        <p class="text-center text-gray-600">Initializing app and loading students...</p>
+    </div>
+
+    <!-- Save Button -->
+    <div class="mt-8 text-center">
+        <button id="saveAttendance" class="px-8 py-4 bg-green-600 text-white text-xl font-bold rounded-xl shadow-lg hover:bg-green-700 transition duration-300 ease-in-out transform hover:scale-105">
+            Save Attendance
+        </button>
+    </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Global variables for Firebase and app context
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
+    let app;
+    let db;
+    let auth;
+    let userId;
+    let students = [];
+    let currentDate = new Date(); // Start with today's date
+
+    // Utility function to format date as YYYY-MM-DD
+    const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    // Initialize Firebase and authenticate
+    const initFirebase = async () => {
+        const studentListDiv = document.getElementById('studentList');
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            // Sign in anonymously or with custom token
+            if (typeof __initial_auth_token !== 'undefined') {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+
+            // Listen for auth state changes to get the user ID
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    console.log("User authenticated:", userId);
+                    loadStudentsAndAttendance();
+                } else {
+                    console.log("No user signed in.");
+                    // Generate a random ID if not authenticated (for local testing without Canvas auth)
+                    userId = crypto.randomUUID();
+                    loadStudentsAndAttendance();
+                }
+            });
+        } catch (error) {
+            console.error("Error initializing Firebase:", error);
+            studentListDiv.innerHTML = `<p class="text-center text-red-500">Error initializing the app. Please check the console for details: ${error.message}</p>`;
+        }
+    };
+
+    // Function to load students from Firestore or create default ones
+    const loadStudentsAndAttendance = async () => {
+        const studentsRef = collection(db, `artifacts/${appId}/public/data/students`);
+        const q = query(studentsRef);
+        const studentListDiv = document.getElementById('studentList');
+
+        // Set a loading message while fetching
+        studentListDiv.innerHTML = '<p class="text-center text-gray-600">Loading student data...</p>';
+
+        // Listen for real-time updates to the students collection
+        onSnapshot(q, async (snapshot) => {
+            if (snapshot.empty) {
+                console.log("No students found. Creating default students.");
+                // Create 30 default students if the collection is empty
+                try {
+                    for (let i = 1; i <= 30; i++) {
+                        const studentId = `student${i}`;
+                        const studentName = `Student ${i}`;
+                        // Use a batch write for efficiency if creating many documents, but setDoc is fine for 30
+                        await setDoc(doc(studentsRef, studentId), { name: studentName });
+                    }
+                    console.log("Default students created.");
+                } catch (createError) {
+                    console.error("Error creating default students:", createError);
+                    studentListDiv.innerHTML = `<p class="text-center text-red-500">Error creating default students: ${createError.message}</p>`;
+                }
+                // After creating, they will be loaded by the onSnapshot listener, which will re-trigger
+            } else {
+                students = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+                console.log("Students loaded:", students);
+                renderAttendance(); // Render attendance after students are loaded
+            }
+        }, (error) => {
+            console.error("Error fetching students with onSnapshot:", error);
+            studentListDiv.innerHTML = `<p class="text-center text-red-500">Error fetching student data: ${error.message}</p>`;
+        });
+    };
+
+    // Function to render the attendance UI for the current date
+    const renderAttendance = async () => {
+        const studentListDiv = document.getElementById('studentList');
+        studentListDiv.innerHTML = ''; // Clear previous list
+        document.getElementById('currentDate').textContent = formatDate(currentDate);
+
+        if (students.length === 0) {
+            studentListDiv.innerHTML = '<p class="text-center text-gray-600">No students available. Please ensure students are loaded correctly.</p>';
+            return;
+        }
+
+        const attendanceDate = formatDate(currentDate);
+        const attendanceDocRef = doc(db, `artifacts/${appId}/public/data/attendance`, attendanceDate);
+
+        try {
+            const attendanceDocSnap = await getDoc(attendanceDocRef);
+            const recordedAttendance = attendanceDocSnap.exists() ? attendanceDocSnap.data() : {};
+
+            students.forEach(student => {
+                const isPresent = recordedAttendance[student.id] === true; // Check if explicitly true
+
+                const studentItem = document.createElement('div');
+                studentItem.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-lg shadow-sm hover:bg-gray-100 transition duration-200 ease-in-out';
+                studentItem.innerHTML = `
+                    <span class="text-lg font-medium text-gray-700">${student.name}</span>
+                    <input type="checkbox" id="attendance-${student.id}" data-student-id="${student.id}"
+                           class="form-checkbox h-6 w-6 text-blue-600 rounded-md border-gray-300 focus:ring-blue-500" ${isPresent ? 'checked' : ''}>
+                `;
+                studentListDiv.appendChild(studentItem);
+            });
+        } catch (error) {
+            console.error("Error rendering attendance or fetching daily attendance:", error);
+            studentListDiv.innerHTML = `<p class="text-center text-red-500">Error loading attendance for this date: ${error.message}</p>`;
+        }
+    };
+
+    // Function to save attendance to Firestore
+    const saveAttendance = async () => {
+        const attendanceDate = formatDate(currentDate);
+        const attendanceData = {};
+        students.forEach(student => {
+            const checkbox = document.getElementById(`attendance-${student.id}`);
+            if (checkbox) {
+                attendanceData[student.id] = checkbox.checked;
+            }
+        });
+
+        const attendanceDocRef = doc(db, `artifacts/${appId}/public/data/attendance`, attendanceDate);
+
+        try {
+            await setDoc(attendanceDocRef, attendanceData);
+            console.log("Attendance saved successfully for", attendanceDate);
+            alertMessage("Attendance saved successfully!", "green");
+        } catch (error) {
+            console.error("Error saving attendance:", error);
+            alertMessage("Error saving attendance: " + error.message, "red");
+        }
+    };
+
+    // Simple alert message function (replaces alert())
+    const alertMessage = (message, type) => {
+        const existingAlert = document.getElementById('customAlert');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+
+        const alertDiv = document.createElement('div');
+        alertDiv.id = 'customAlert';
+        alertDiv.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg text-white z-50 ${type === 'green' ? 'bg-green-500' : 'bg-red-500'}`;
+        alertDiv.textContent = message;
+        document.body.appendChild(alertDiv);
+
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 3000);
+    };
+
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', initFirebase);
+
+    document.getElementById('prevDay').addEventListener('click', () => {
+        currentDate.setDate(currentDate.getDate() - 1);
+        renderAttendance();
+    });
+
+    document.getElementById('nextDay').addEventListener('click', () => {
+        currentDate.setDate(currentDate.getDate() + 1);
+        renderAttendance();
+    });
+
+    document.getElementById('saveAttendance').addEventListener('click', saveAttendance);
+</script>
